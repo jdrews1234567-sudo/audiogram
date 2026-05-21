@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Audiometric Threshold Recorder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --paper: #fafaf7;
+    --rule: #1a1a1a;
+    --muted: #6b6b6b;
+    --red: #c8102e;
+    --blue: #003da5;
+    --accent: #1a1a1a;
+    --grid: #d8d4cc;
+    --grid-major: #1a1a1a;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #ebe8e0;
+    font-family: 'Crimson Pro', Georgia, serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    min-height: 100vh;
+  }
+
+  /* === LEFT PANEL: INPUT FORM === */
+  .panel {
+    background: #1a1a1a;
+    color: #fafaf7;
+    padding: 36px 32px 40px;
+    overflow-y: auto;
+    border-right: 1px solid #000;
+  }
+
+  .panel-header {
+    margin-bottom: 28px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #3a3a3a;
+  }
+
+  .panel-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #a8a39a;
+    margin-bottom: 8px;
+  }
+
+  .panel-title {
+    font-family: 'Crimson Pro', serif;
+    font-weight: 600;
+    font-size: 26px;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .panel-subtitle {
+    font-style: italic;
+    font-size: 14px;
+    color: #a8a39a;
+    margin-top: 6px;
+  }
+
+  .field-group {
+    margin-bottom: 22px;
+  }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #a8a39a;
+    margin-bottom: 6px;
+  }
+
+  input[type="text"], input[type="date"] {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #555;
+    color: #fafaf7;
+    font-family: 'Crimson Pro', serif;
+    font-size: 17px;
+    padding: 6px 0;
+    outline: none;
+    transition: border-color 0.2s;
+    font-feature-settings: "tnum" 1;
+  }
+
+  input[type="text"]:focus, input[type="date"]:focus {
+    border-bottom-color: #fafaf7;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+    cursor: pointer;
+  }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #a8a39a;
+    margin: 32px 0 14px;
+    padding-top: 18px;
+    border-top: 1px solid #3a3a3a;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .section-label .unit {
+    font-style: normal;
+    color: #6b6b6b;
+    text-transform: none;
+    letter-spacing: 0.05em;
+  }
+
+  .threshold-grid {
+    display: grid;
+    grid-template-columns: 60px 1fr 1fr;
+    gap: 8px 10px;
+    align-items: center;
+  }
+
+  .threshold-grid .head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #a8a39a;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #3a3a3a;
+  }
+
+  .threshold-grid .head.right { color: #ff6b7a; }
+  .threshold-grid .head.left { color: #6b9eff; }
+
+  .freq-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #d8d4cc;
+    text-align: right;
+    padding-right: 6px;
+  }
+
+  .threshold-grid input[type="number"] {
+    width: 100%;
+    background: #252525;
+    border: 1px solid #333;
+    color: #fafaf7;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 7px 8px;
+    outline: none;
+    border-radius: 2px;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .threshold-grid input[type="number"]:focus {
+    background: #2e2e2e;
+  }
+
+  .threshold-grid input.right:focus { border-color: #ff6b7a; }
+  .threshold-grid input.left:focus { border-color: #6b9eff; }
+
+  /* hide number spinners */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] { -moz-appearance: textfield; }
+
+  .actions {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid #3a3a3a;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 14px 18px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+
+  .btn-primary {
+    background: #fafaf7;
+    color: #1a1a1a;
+    font-weight: 500;
+  }
+
+  .btn-primary:hover {
+    background: #e8e3d5;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: #a8a39a;
+    border: 1px solid #3a3a3a;
+  }
+
+  .btn-secondary:hover {
+    color: #fafaf7;
+    border-color: #555;
+  }
+
+  /* === RIGHT PANEL: PREVIEW (matches PDF output exactly) === */
+  .preview-wrap {
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
+  .sheet {
+    background: var(--paper);
+    width: 8.5in;
+    min-height: 11in;
+    padding: 0.5in 0.5in;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08);
+    font-family: 'Crimson Pro', Georgia, serif;
+    color: var(--ink);
+    position: relative;
+  }
+
+  /* === HEADER (matches original PDF) === */
+  .sheet-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    padding-bottom: 6px;
+    font-size: 13px;
+  }
+
+  .header-field {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .header-label {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .header-value {
+    flex: 1;
+    border-bottom: 1px solid var(--ink);
+    padding: 0 4px 2px;
+    min-height: 18px;
+    font-feature-settings: "tnum" 1;
+    text-align: center;
+  }
+
+  .test-method {
+    margin-top: 14px;
+    font-size: 13px;
+  }
+
+  /* === AUDIOGRAM === */
+  .audiogram-frame {
+    margin-top: 10px;
+    border: 1px solid var(--ink);
+    padding: 12px 14px 10px;
+    background: #fff;
+  }
+
+  .audiogram-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .audiogram-title {
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 18px;
+    letter-spacing: 0.02em;
+  }
+
+  .audiogram-rule {
+    height: 1px;
+    background: var(--ink);
+    margin: 2px 0 8px;
+  }
+
+  .audiogram-body {
+    display: grid;
+    grid-template-columns: 1fr 130px;
+    gap: 14px;
+  }
+
+  svg.audiogram-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .axis-text {
+    font-size: 9px;
+    fill: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .axis-label {
+    font-size: 8px;
+    fill: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* === LEGEND (matches original) === */
+  .legend {
+    font-size: 9px;
+    font-family: 'Crimson Pro', serif;
+    padding-top: 8px;
+  }
+
+  .legend-title {
+    display: grid;
+    grid-template-columns: 1fr 28px 28px;
+    gap: 4px;
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 3px;
+    margin-bottom: 6px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .legend-title span:first-child { text-align: left; }
+
+  .legend-row {
+    display: grid;
+    grid-template-columns: 1fr 28px 28px;
+    gap: 4px;
+    align-items: center;
+    padding: 3px 0;
+    font-size: 9px;
+  }
+
+  .legend-row .sym {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 14px;
+  }
+
+  .legend-row .sym svg {
+    overflow: visible;
+  }
+
+  /* === CLASSIFICATION TABLE === */
+  .classification-section {
+    margin-top: 16px;
+    font-size: 12.5px;
+  }
+
+  .classification-intro {
+    margin-bottom: 8px;
+    margin-top: 0;
+  }
+
+  table.classification {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Crimson Pro', serif;
+    font-size: 12px;
+  }
+
+  table.classification th,
+  table.classification td {
+    border: 1px solid var(--ink);
+    padding: 5px 12px;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  table.classification th {
+    font-weight: 700;
+    background: #f0ece0;
+  }
+
+  table.classification td.range {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .source-line {
+    margin-top: 10px;
+    font-size: 11px;
+    font-style: italic;
+    color: var(--muted);
+  }
+
+  /* === PRINT/PDF: clean rendering === */
+  @media print {
+    body { background: white; }
+    .panel, .preview-wrap { padding: 0; }
+    .sheet { box-shadow: none; }
+  }
+
+  /* Hide arrows on mobile/touch */
+  @media (max-width: 1000px) {
+    .app { grid-template-columns: 1fr; }
+    .preview-wrap { padding: 20px; }
+    .sheet { width: 100%; padding: 32px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ========== INPUT PANEL ========== -->
+  <aside class="panel">
+    <div class="panel-header">
+      <div class="panel-eyebrow">ABC Lab · Amplivox 170</div>
+      <h1 class="panel-title">Audiometric Thresholds</h1>
+      <div class="panel-subtitle">Pure-tone air conduction</div>
+    </div>
+
+    <div class="field-row">
+      <div>
+        <label for="participantId">Participant ID</label>
+        <input type="text" id="participantId" placeholder="ABC0000" autocomplete="off" />
+      </div>
+      <div>
+        <label for="testDate">Date</label>
+        <input type="date" id="testDate" />
+      </div>
+    </div>
+
+    <div class="section-label">
+      <span>Thresholds</span>
+      <span class="unit">dB HL</span>
+    </div>
+
+    <div class="threshold-grid">
+      <div class="freq-label" style="border-bottom: 1px solid #3a3a3a; padding-bottom: 4px;">Hz</div>
+      <div class="head left">Left ✕</div>
+      <div class="head right">Right ○</div>
+      <!-- Frequency rows injected by JS -->
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="exportBtn">Export PDF</button>
+      <button class="btn btn-secondary" id="clearBtn">Clear All</button>
+      <button class="btn btn-secondary" id="sampleBtn">Load Sample</button>
+    </div>
+  </aside>
+
+  <!-- ========== PREVIEW / PRINT AREA ========== -->
+  <main class="preview-wrap">
+    <div class="sheet" id="sheet">
+
+      <!-- Header: matches original PDF -->
+      <div class="sheet-header">
+        <div class="header-field">
+          <span class="header-label">Participant ID:</span>
+          <span class="header-value" id="out-pid"></span>
+        </div>
+        <div class="header-field">
+          <span class="header-label">Date:</span>
+          <span class="header-value" id="out-date"></span>
+        </div>
+      </div>
+
+      <div class="test-method">Amplivox 170: Automatic Testing</div>
+
+      <!-- Audiogram -->
+      <div class="audiogram-frame">
+        <div class="audiogram-header">
+          <span class="audiogram-title">amplivox audiogram</span>
+          <svg width="34" height="14" viewBox="0 0 34 14">
+            <polyline points="0,7 6,7 9,2 13,12 16,4 19,10 22,5 26,7 34,7" fill="none" stroke="#1a1a1a" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="audiogram-rule"></div>
+
+        <div class="audiogram-body">
+          <!-- Plot SVG injected here -->
+          <svg id="audiogram" class="audiogram-svg" viewBox="0 0 560 300" preserveAspectRatio="xMidYMid meet"></svg>
+
+          <!-- Legend matches the original -->
+          <div class="legend">
+            <div class="legend-title">
+              <span></span>
+              <span>L</span>
+              <span>R</span>
+            </div>
+            <div class="legend-row">
+              <span>Air conduction</span>
+              <span class="sym">
+                <svg width="14" height="14" viewBox="-7 -7 14 14"><line x1="-4" y1="-4" x2="4" y2="4" stroke="#003da5" stroke-width="1.6"/><line x1="-4" y1="4" x2="4" y2="-4" stroke="#003da5" stroke-width="1.6"/></svg>
+              </span>
+              <span class="sym">
+                <svg width="14" height="14" viewBox="-7 -7 14 14"><circle cx="0" cy="0" r="4" fill="none" stroke="#c8102e" stroke-width="1.6"/></svg>
+              </span>
+            </div>
+            <div class="legend-row">
+              <span>Bone conduction</span>
+              <span class="sym">
+                <svg width="14" height="14" viewBox="-7 -7 14 14"><path d="M -3 -4 L 3 -4 L 3 4 L -3 4" fill="none" stroke="#003da5" stroke-width="1.6"/></svg>
+              </span>
+              <span class="sym">
+                <svg width="14" height="14" viewBox="-7 -7 14 14"><path d="M 3 -4 L -3 -4 L -3 4 L 3 4" fill="none" stroke="#c8102e" stroke-width="1.6"/></svg>
+              </span>
+            </div>
+            <div class="legend-row">
+              <span>Bone conduction<br/>not masked</span>
+              <span class="sym">
+                <svg width="14" height="14" viewBox="-7 -7 14 14"><polygon points="0,-4 4,3 -4,3" fill="none" stroke="#003da5" stroke-width="1.6"/></svg>
+              </span>
+              <span class="sym">
+                <svg width="14" height="14" viewBox="-7 -7 14 14"><polygon points="0,-4 4,3 -4,3" fill="none" stroke="#c8102e" stroke-width="1.6"/></svg>
+              </span>
+            </div>
+            <div class="legend-row">
+              <span>Air conduction<br/>ear shadow</span>
+              <span class="sym">
+                <svg width="14" height="14" viewBox="-7 -7 14 14"><text x="0" y="4" text-anchor="middle" font-family="Crimson Pro" font-style="italic" font-size="13" fill="#003da5" font-weight="600">X</text></svg>
+              </span>
+              <span class="sym">
+                <svg width="14" height="14" viewBox="-7 -7 14 14"><circle cx="0" cy="0" r="4" fill="#c8102e"/></svg>
+              </span>
+            </div>
+            <div class="legend-row">
+              <span>No response<br/>bone conduction</span>
+              <span class="sym">
+                <svg width="14" height="14" viewBox="-7 -7 14 14"><line x1="-3" y1="-4" x2="-3" y2="4" stroke="#003da5" stroke-width="1.6"/><polyline points="-5,2 -3,5 -1,2" fill="none" stroke="#003da5" stroke-width="1.6"/></svg>
+              </span>
+              <span class="sym">
+                <svg width="14" height="14" viewBox="-7 -7 14 14"><line x1="3" y1="-4" x2="3" y2="4" stroke="#c8102e" stroke-width="1.6"/><polyline points="1,2 3,5 5,2" fill="none" stroke="#c8102e" stroke-width="1.6"/></svg>
+              </span>
+            </div>
+            <div class="legend-row">
+              <span>No response<br/>air conduction</span>
+              <span class="sym">
+                <svg width="14" height="14" viewBox="-7 -7 14 14"><line x1="-3" y1="-3" x2="3" y2="3" stroke="#003da5" stroke-width="1.4"/><line x1="-3" y1="3" x2="3" y2="-3" stroke="#003da5" stroke-width="1.4"/><polyline points="-2,3 0,6 2,3" fill="none" stroke="#003da5" stroke-width="1.4"/></svg>
+              </span>
+              <span class="sym">
+                <svg width="14" height="14" viewBox="-7 -7 14 14"><circle cx="0" cy="-1" r="3" fill="none" stroke="#c8102e" stroke-width="1.4"/><polyline points="-2,3 0,6 2,3" fill="none" stroke="#c8102e" stroke-width="1.4"/></svg>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Classification table (static) -->
+      <div class="classification-section">
+        <p class="classification-intro">The table below shows one of the more commonly used classification systems.</p>
+        <table class="classification">
+          <thead>
+            <tr>
+              <th>Degree of hearing loss</th>
+              <th>Hearing loss range (dB HL)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Normal</td><td class="range">–10 to 15</td></tr>
+            <tr><td>Slight</td><td class="range">16 to 25</td></tr>
+            <tr><td>Mild</td><td class="range">26 to 40</td></tr>
+            <tr><td>Moderate</td><td class="range">41 to 55</td></tr>
+            <tr><td>Moderately severe</td><td class="range">56 to 70</td></tr>
+            <tr><td>Severe</td><td class="range">71 to 90</td></tr>
+            <tr><td>Profound</td><td class="range">91+</td></tr>
+          </tbody>
+        </table>
+        <p class="source-line">Source: Clark, J. G. (1981). Uses and abuses of hearing loss classification. Asha, 23, 493–500.</p>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+// ===== Config =====
+// Frequencies we actually RECORD (used for input form + data points)
+const FREQUENCIES = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000];
+
+// Frequencies SHOWN on the x-axis of the graph (matches original Amplivox sheet)
+// Two-row layout in the original: top row 250/750/1500/3000/6000/12000, bottom row 125/500/1000/2000/4000/8000/16000
+const AXIS_FREQS_TOP    = [250, 750, 1500, 3000, 6000, 12000];
+const AXIS_FREQS_BOTTOM = [125, 500, 1000, 2000, 4000, 8000, 16000];
+const ALL_AXIS_FREQS = [125, 250, 500, 750, 1000, 1500, 2000, 3000, 4000, 6000, 8000, 12000, 16000];
+
+const FREQ_MIN = 125;
+const FREQ_MAX = 16000;
+
+const DB_MIN = -10;
+const DB_MAX = 120;
+
+// Plot geometry (matches viewBox 560 x 300)
+const PLOT = {
+  left: 56,
+  right: 540,
+  top: 42,    // room for two-row frequency labels
+  bottom: 280,
+  get w() { return this.right - this.left; },
+  get h() { return this.bottom - this.top; }
+};
+
+// ===== Build input rows =====
+const grid = document.querySelector('.threshold-grid');
+FREQUENCIES.forEach(f => {
+  const label = document.createElement('div');
+  label.className = 'freq-label';
+  label.textContent = f >= 1000 ? (f/1000) + 'k' : f;
+
+  const r = document.createElement('input');
+  r.type = 'number';
+  r.className = 'right';
+  r.min = DB_MIN;
+  r.max = DB_MAX;
+  r.step = 5;
+  r.dataset.ear = 'right';
+  r.dataset.freq = f;
+  r.placeholder = '—';
+
+  const l = document.createElement('input');
+  l.type = 'number';
+  l.className = 'left';
+  l.min = DB_MIN;
+  l.max = DB_MAX;
+  l.step = 5;
+  l.dataset.ear = 'left';
+  l.dataset.freq = f;
+  l.placeholder = '—';
+
+  grid.appendChild(label);
+  grid.appendChild(l);
+  grid.appendChild(r);
+});
+
+// ===== Coordinate mapping =====
+function xForFreq(f) {
+  // log scale across full Amplivox axis range
+  const minLog = Math.log2(FREQ_MIN);
+  const maxLog = Math.log2(FREQ_MAX);
+  const t = (Math.log2(f) - minLog) / (maxLog - minLog);
+  return PLOT.left + t * PLOT.w;
+}
+
+function yForDb(db) {
+  const t = (db - DB_MIN) / (DB_MAX - DB_MIN);
+  return PLOT.top + t * PLOT.h;
+}
+
+// ===== Render audiogram =====
+function renderAudiogram() {
+  const svg = document.getElementById('audiogram');
+  svg.innerHTML = '';
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // --- Gridlines ---
+  // Vertical lines at every axis frequency
+  ALL_AXIS_FREQS.forEach(f => {
+    const x = xForFreq(f);
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', x);
+    line.setAttribute('x2', x);
+    line.setAttribute('y1', PLOT.top);
+    line.setAttribute('y2', PLOT.bottom);
+    line.setAttribute('stroke', 'var(--grid)');
+    line.setAttribute('stroke-width', '0.5');
+    svg.appendChild(line);
+  });
+
+  // Horizontal lines every 10 dB
+  for (let db = DB_MIN; db <= DB_MAX; db += 10) {
+    const y = yForDb(db);
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', PLOT.left);
+    line.setAttribute('x2', PLOT.right);
+    line.setAttribute('y1', y);
+    line.setAttribute('y2', y);
+    line.setAttribute('stroke', db === 0 ? 'var(--grid-major)' : 'var(--grid)');
+    line.setAttribute('stroke-width', db === 0 ? '0.8' : '0.4');
+    svg.appendChild(line);
+  }
+
+  // --- Frame ---
+  const frame = document.createElementNS(NS, 'rect');
+  frame.setAttribute('x', PLOT.left);
+  frame.setAttribute('y', PLOT.top);
+  frame.setAttribute('width', PLOT.w);
+  frame.setAttribute('height', PLOT.h);
+  frame.setAttribute('fill', 'none');
+  frame.setAttribute('stroke', 'var(--ink)');
+  frame.setAttribute('stroke-width', '1');
+  svg.appendChild(frame);
+
+  // --- Frequency axis labels (two-row layout, like the original) ---
+  // Top row: 250, 750, 1500, 3000, 6000, 12000
+  AXIS_FREQS_TOP.forEach(f => {
+    const x = xForFreq(f);
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', x);
+    t.setAttribute('y', PLOT.top - 18);
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('class', 'axis-text');
+    t.textContent = f;
+    svg.appendChild(t);
+  });
+  // Bottom row: 125, 500, 1000, 2000, 4000, 8000, 16000
+  AXIS_FREQS_BOTTOM.forEach(f => {
+    const x = xForFreq(f);
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', x);
+    t.setAttribute('y', PLOT.top - 6);
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('class', 'axis-text');
+    t.textContent = f;
+    svg.appendChild(t);
+  });
+
+  const xAxisLabel = document.createElementNS(NS, 'text');
+  xAxisLabel.setAttribute('x', PLOT.left);
+  xAxisLabel.setAttribute('y', 14);
+  xAxisLabel.setAttribute('text-anchor', 'start');
+  xAxisLabel.setAttribute('class', 'axis-label');
+  xAxisLabel.textContent = 'FREQUENCY / Hz';
+  svg.appendChild(xAxisLabel);
+
+  // dB axis (left)
+  for (let db = DB_MIN; db <= DB_MAX; db += 10) {
+    const y = yForDb(db);
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', PLOT.left - 8);
+    t.setAttribute('y', y + 3);
+    t.setAttribute('text-anchor', 'end');
+    t.setAttribute('class', 'axis-text');
+    t.textContent = db;
+    svg.appendChild(t);
+  }
+
+  const yAxisLabel = document.createElementNS(NS, 'text');
+  yAxisLabel.setAttribute('class', 'axis-label');
+  yAxisLabel.setAttribute('text-anchor', 'middle');
+  yAxisLabel.setAttribute('transform', `translate(14, ${(PLOT.top+PLOT.bottom)/2}) rotate(-90)`);
+  yAxisLabel.textContent = 'HEARING LEVEL / dB ISO';
+  svg.appendChild(yAxisLabel);
+
+  // --- Plot data ---
+  const rightData = collectData('right');
+  const leftData = collectData('left');
+
+  drawSeries(svg, leftData, 'left');   // left first so right sits on top if overlapping
+  drawSeries(svg, rightData, 'right');
+}
+
+function collectData(ear) {
+  const data = [];
+  document.querySelectorAll(`input[data-ear="${ear}"]`).forEach(inp => {
+    const v = inp.value.trim();
+    if (v === '' || isNaN(parseFloat(v))) return;
+    const db = parseFloat(v);
+    if (db < DB_MIN || db > DB_MAX) return;
+    data.push({ freq: parseInt(inp.dataset.freq, 10), db });
+  });
+  data.sort((a,b) => a.freq - b.freq);
+  return data;
+}
+
+function drawSeries(svg, data, ear) {
+  if (data.length === 0) return;
+  const NS = 'http://www.w3.org/2000/svg';
+  const color = ear === 'right' ? 'var(--red)' : 'var(--blue)';
+
+  // connect line
+  if (data.length > 1) {
+    const points = data.map(d => `${xForFreq(d.freq)},${yForDb(d.db)}`).join(' ');
+    const poly = document.createElementNS(NS, 'polyline');
+    poly.setAttribute('points', points);
+    poly.setAttribute('fill', 'none');
+    poly.setAttribute('stroke', color);
+    poly.setAttribute('stroke-width', '1.4');
+    poly.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(poly);
+  }
+
+  // symbols
+  data.forEach(d => {
+    const x = xForFreq(d.freq);
+    const y = yForDb(d.db);
+    if (ear === 'right') {
+      const c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', x);
+      c.setAttribute('cy', y);
+      c.setAttribute('r', 5);
+      c.setAttribute('fill', 'white');
+      c.setAttribute('stroke', color);
+      c.setAttribute('stroke-width', '1.8');
+      svg.appendChild(c);
+    } else {
+      const size = 5;
+      const g = document.createElementNS(NS, 'g');
+      const l1 = document.createElementNS(NS, 'line');
+      l1.setAttribute('x1', x-size); l1.setAttribute('y1', y-size);
+      l1.setAttribute('x2', x+size); l1.setAttribute('y2', y+size);
+      l1.setAttribute('stroke', color); l1.setAttribute('stroke-width', '1.8');
+      const l2 = document.createElementNS(NS, 'line');
+      l2.setAttribute('x1', x-size); l2.setAttribute('y1', y+size);
+      l2.setAttribute('x2', x+size); l2.setAttribute('y2', y-size);
+      l2.setAttribute('stroke', color); l2.setAttribute('stroke-width', '1.8');
+      g.appendChild(l1); g.appendChild(l2);
+      svg.appendChild(g);
+    }
+  });
+}
+
+// ===== Header sync =====
+function syncHeader() {
+  document.getElementById('out-pid').textContent = document.getElementById('participantId').value || '';
+  const dateInput = document.getElementById('testDate').value;
+  let formatted = '';
+  if (dateInput) {
+    const [y, m, d] = dateInput.split('-');
+    formatted = `${m}/${d}/${y}`;
+  }
+  document.getElementById('out-date').textContent = formatted;
+}
+
+// ===== Wire up events =====
+document.addEventListener('input', e => {
+  if (e.target.matches('input')) {
+    syncHeader();
+    renderAudiogram();
+  }
+});
+
+// ===== Buttons =====
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (!confirm('Clear all fields?')) return;
+  document.querySelectorAll('input').forEach(i => i.value = '');
+  syncHeader();
+  renderAudiogram();
+});
+
+document.getElementById('sampleBtn').addEventListener('click', () => {
+  document.getElementById('participantId').value = 'ABC1546';
+  document.getElementById('testDate').valueAsDate = new Date();
+  // approximate values from the uploaded sample (mild low-freq slope, normal high-freq, similar to image)
+  const sample = {
+    right: { 250: 15, 500: 10, 1000: 5, 2000: 0, 3000: 0, 4000: 0, 6000: 0, 8000: -5 },
+    left:  { 250: 20, 500: 25, 1000: 10, 2000: 5, 3000: 0, 4000: 0, 6000: 5, 8000: 0 }
+  };
+  document.querySelectorAll('input[type="number"]').forEach(inp => {
+    const ear = inp.dataset.ear;
+    const f = parseInt(inp.dataset.freq, 10);
+    inp.value = sample[ear][f];
+  });
+  syncHeader();
+  renderAudiogram();
+});
+
+document.getElementById('exportBtn').addEventListener('click', async () => {
+  const pid = document.getElementById('participantId').value.trim();
+  if (!pid) {
+    if (!confirm('Participant ID is empty. Export anyway?')) return;
+  }
+  const sheet = document.getElementById('sheet');
+  const filename = `Audiogram_${pid || 'untitled'}_${new Date().toISOString().slice(0,10)}.pdf`;
+
+  // Letter page dimensions in inches
+  const PAGE_W = 8.5;
+  const PAGE_H = 11;
+
+  // Render the sheet to a high-resolution canvas
+  const canvas = await html2canvas(sheet, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#fafaf7',
+    logging: false,
+    // Force the renderer to use the sheet's actual rendered dimensions
+    width: sheet.offsetWidth,
+    height: sheet.offsetHeight,
+    windowWidth: sheet.offsetWidth,
+    windowHeight: sheet.offsetHeight
+  });
+
+  // Determine how the canvas should fit onto the letter page
+  // Canvas dimensions in inches at 96 DPI:
+  const canvasWidthIn = canvas.width / (2 * 96);   // divide by scale * 96 dpi
+  const canvasHeightIn = canvas.height / (2 * 96);
+
+  // Scale to fit page width (sheet is designed at 8.5in, so scale should be ~1)
+  let scaleFactor = PAGE_W / canvasWidthIn;
+  // If scaling to width makes it taller than the page, scale to height instead
+  if (canvasHeightIn * scaleFactor > PAGE_H) {
+    scaleFactor = PAGE_H / canvasHeightIn;
+  }
+
+  const finalW = canvasWidthIn * scaleFactor;
+  const finalH = canvasHeightIn * scaleFactor;
+
+  // Center on page
+  const offsetX = (PAGE_W - finalW) / 2;
+  const offsetY = (PAGE_H - finalH) / 2;
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({
+    unit: 'in',
+    format: 'letter',
+    orientation: 'portrait'
+  });
+
+  const imgData = canvas.toDataURL('image/jpeg', 0.95);
+  pdf.addImage(imgData, 'JPEG', offsetX, offsetY, finalW, finalH);
+  pdf.save(filename);
+});
+
+// ===== Init =====
+document.getElementById('testDate').valueAsDate = new Date();
+syncHeader();
+renderAudiogram();
+</script>
+</body>
+</html>
